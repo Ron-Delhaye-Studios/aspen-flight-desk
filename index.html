@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ASE Flight Desk — Aspen Airport Schedule Lookup</title>
+<meta name="description" content="Confirm flight numbers and times against Aspen Airport's official monthly airline schedule.">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#103D60">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  :root{
+    --navy:#103D60; --navy-deep:#0B2C46; --gold:#C9A227; --gold-soft:#F5EDD8;
+    --ink:#1c2733; --muted:#5d6f80; --line:#e3e9ef; --bg:#f7f9fb;
+    --ok:#1c7a3d; --ok-bg:#e7f4ec; --warn:#9a6a00; --warn-bg:#fdf3dd; --bad:#b3261e; --bad-bg:#fbecea;
+    --radius:14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--ink); font-size:16px; line-height:1.45;}
+  header{background:linear-gradient(135deg,var(--navy-deep),var(--navy)); color:#fff; padding:22px 18px 18px;}
+  header .kicker{font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--gold); font-weight:700;}
+  header h1{margin:4px 0 2px; font-size:24px; font-weight:700; letter-spacing:.01em;}
+  header p{margin:0; font-size:13px; opacity:.82;}
+  main{max-width:640px; margin:0 auto; padding:16px 14px 40px;}
+  .tabs{display:flex; background:#e8edf2; border-radius:12px; padding:4px; margin:4px 0 14px;}
+  .tabs button{flex:1; border:0; background:transparent; border-radius:9px; padding:11px 6px;
+    font-size:15px; font-weight:600; color:var(--muted); cursor:pointer;}
+  .tabs button.active{background:#fff; color:var(--navy); box-shadow:0 1px 4px rgba(16,61,96,.18);}
+  .card{background:#fff; border:1px solid var(--line); border-radius:var(--radius); padding:18px; margin-bottom:14px;
+    box-shadow:0 1px 3px rgba(16,61,96,.06);}
+  label{display:block; font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--muted); margin:0 0 6px;}
+  input[type=text],input[type=date],input[type=time],select{
+    width:100%; font-size:20px; padding:13px 14px; border:2px solid var(--line); border-radius:10px;
+    margin-bottom:12px; background:#fff; color:var(--ink); font-family:inherit;}
+  input:focus,select:focus{outline:none; border-color:var(--navy);}
+  .row2{display:flex; gap:10px;} .row2>div{flex:1;}
+  .btn{display:block; width:100%; border:0; border-radius:12px; padding:15px; font-size:18px; font-weight:700;
+    background:var(--navy); color:#fff; cursor:pointer; letter-spacing:.01em;}
+  .btn:active{transform:scale(.99); background:var(--navy-deep);}
+  .result{border-radius:var(--radius); padding:18px; margin-bottom:14px; border:1.5px solid;}
+  .result.ok{background:var(--ok-bg); border-color:#bfe0cb;}
+  .result.warn{background:var(--warn-bg); border-color:#ecd9a0;}
+  .result.bad{background:var(--bad-bg); border-color:#f0c4c0;}
+  .verdict{font-size:15px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; margin-bottom:8px;}
+  .ok .verdict{color:var(--ok);} .warn .verdict{color:var(--warn);} .bad .verdict{color:var(--bad);}
+  .flight-no{font-size:15px; color:var(--muted); font-weight:600;}
+  .route{font-size:22px; font-weight:800; color:var(--navy); margin:2px 0;}
+  .bigtime{font-size:44px; font-weight:800; color:var(--navy); letter-spacing:-.01em; line-height:1.1;}
+  .bigtime small{font-size:16px; font-weight:600; color:var(--muted);}
+  .detail{font-size:14px; color:var(--muted); margin-top:8px;}
+  .detail b{color:var(--ink);}
+  .chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+  .chip{border:1.5px solid var(--navy); color:var(--navy); background:#fff; border-radius:999px;
+    padding:9px 15px; font-size:15px; font-weight:700; cursor:pointer;}
+  .match{display:flex; justify-content:space-between; align-items:center; padding:12px 4px; border-bottom:1px solid var(--line);}
+  .match:last-child{border-bottom:0;}
+  .match .t{font-size:20px; font-weight:800; color:var(--navy);}
+  .match .f{font-size:14px; color:var(--muted); font-weight:600;}
+  .src{font-size:12px; color:var(--muted); text-align:center; margin-top:18px; line-height:1.6;}
+  .src a{color:var(--navy);}
+  .notice{background:var(--warn-bg); border:1px solid #ecd9a0; border-radius:10px; padding:10px 14px;
+    font-size:13.5px; color:#6b4e00; margin-bottom:14px;}
+  .hidden{display:none;}
+  footer{text-align:center; font-size:12px; color:var(--muted); padding:8px 0 30px;}
+</style>
+</head>
+<body>
+<header>
+  <div class="kicker">Aspen · Pitkin County Airport</div>
+  <h1>✈ ASE Flight Desk</h1>
+  <p>Confirm flight numbers &amp; times against the airport's official monthly schedule.</p>
+</header>
+
+<main>
+  <div class="tabs">
+    <button id="tab-flight" class="active" onclick="showTab('flight')">Flight #</button>
+    <button id="tab-route" onclick="showTab('route')">Route + Time</button>
+  </div>
+
+  <div id="month-notice" class="notice hidden"></div>
+
+  <!-- FLIGHT NUMBER TAB -->
+  <section id="panel-flight">
+    <div class="card">
+      <label for="q">Flight number</label>
+      <input type="text" id="q" inputmode="text" autocomplete="off" autocapitalize="characters"
+             placeholder="e.g. UA 5750" enterkeyhint="search">
+      <div class="row2">
+        <div>
+          <label for="d1">Date</label>
+          <input type="date" id="d1">
+        </div>
+      </div>
+      <button class="btn" onclick="lookupFlight()">Confirm flight</button>
+    </div>
+    <div id="out1"></div>
+  </section>
+
+  <!-- ROUTE + TIME TAB -->
+  <section id="panel-route" class="hidden">
+    <div class="card">
+      <label for="origin">From</label>
+      <select id="origin"></select>
+      <div class="row2">
+        <div>
+          <label for="t">Around what time?</label>
+          <input type="time" id="t" value="13:30">
+        </div>
+        <div>
+          <label for="d2">Date</label>
+          <input type="date" id="d2">
+        </div>
+      </div>
+      <button class="btn" onclick="lookupRoute()">Find the flight</button>
+    </div>
+    <div id="out2"></div>
+  </section>
+
+  <div class="src" id="src-line"></div>
+</main>
+
+<footer>Built for the concierge desk · data parsed automatically each month</footer>
+
+<script>
+let DB = null;
+
+const DAY_ABBR = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const AIRLINES = {UA:"United", AA:"American", DL:"Delta"};
+
+function monthKey(ds){ return ds.slice(0,7); }
+function monthData(ds){
+  const keys = Object.keys(DB.months).sort();
+  const k = monthKey(ds);
+  if (DB.months[k]) return {key:k, data:DB.months[k], exact:true};
+  const latest = keys[keys.length-1];
+  return {key:latest, data:DB.months[latest], exact:false};
+}
+function todayStr(){ const d=new Date(); return d.toISOString().slice(0,10); }
+
+function showTab(which){
+  document.getElementById('tab-flight').classList.toggle('active', which==='flight');
+  document.getElementById('tab-route').classList.toggle('active', which==='route');
+  document.getElementById('panel-flight').classList.toggle('hidden', which!=='flight');
+  document.getElementById('panel-route').classList.toggle('hidden', which!=='route');
+}
+
+function normFlight(q){
+  q = (q||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+  let m = q.match(/^([A-Z]{2})(\d{1,4}[A-Z]?)$/);
+  if (m) return {code:m[1]+m[2], airline:m[1], digits:m[2]};
+  m = q.match(/^(\d{1,4}[A-Z]?)$/);
+  if (m) return {code:m[1], airline:null, digits:m[1]};
+  return {code:q, airline:null, digits:null};
+}
+function toMin(t){ // "1:34 PM" -> minutes
+  const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i); if(!m) return null;
+  let h = +m[1]%12; if(/pm/i.test(m[3])) h+=12; return h*60 + (+m[2]);
+}
+function timeForDate(entry, ds){
+  for (const v of entry.time_variants) if (v.dates.includes(ds)) return {time:v.time, variant:true};
+  return {time:entry.primary_time, variant:false};
+}
+function operates(entry){
+  const days = new Set(entry.all_dates.map(d=>new Date(d+"T12:00:00").getDay()));
+  if (days.size===7) return "Daily";
+  const wd=[1,2,3,4,5].every(x=>days.has(x)) && days.size===5 ? "Weekdays" :
+             [0,6].every(x=>days.has(x)) && days.size===2 ? "Weekends" : null;
+  if (wd) return wd;
+  return [...days].sort().map(d=>DAY_ABBR[d]).join(" · ");
+}
+function variantNote(entry){
+  if (!entry.time_variants.length) return "";
+  const parts = entry.time_variants.map(v=>{
+    const ds=v.dates; const span = ds.length>2 ? `${fmtD(ds[0])}–${fmtD(ds[ds.length-1])}` : ds.map(fmtD).join(", ");
+    return `${v.time} (${span})`;
+  });
+  return `Also scheduled at ${parts.join("; ")} on some dates this month.`;
+}
+function fmtD(ds){ const [y,m,d]=ds.split("-").map(Number); return `${m}/${d}`; }
+function fmtLong(ds){ const dt=new Date(ds+"T12:00:00");
+  return dt.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"}); }
+
+function digitDist(a,b){
+  a=String(a); b=String(b);
+  const n=Math.max(a.length,b.length); let d=Math.abs(a.length-b.length);
+  for(let i=0;i<Math.min(a.length,b.length);i++) if(a[i]!==b[i]) d++;
+  return d/n;
+}
+function suggestions(norm, entries, limit){
+  return entries
+    .filter(e=>!norm.airline || e.airline===norm.airline)
+    .map(e=>({e, s:digitDist(e.flight.replace(/^[A-Z]+/,""), norm.digits||"")}))
+    .sort((a,b)=>a.s-b.s).slice(0,limit).map(x=>x.e);
+}
+
+function lookupFlight(){
+  const norm = normFlight(document.getElementById('q').value);
+  const ds = document.getElementById('d1').value || todayStr();
+  const {key, data, exact} = monthData(ds);
+  monthNotice(exact, key, ds);
+  const out = document.getElementById('out1');
+  if (!norm.digits){ out.innerHTML = card("bad","Enter a flight number","Type a flight number like <b>UA 5750</b> to confirm it."); return; }
+  const entries = data.flights.filter(f=>f.flight===norm.code || (!norm.airline && f.flight.endsWith(norm.digits)));
+  if (entries.length){
+    out.innerHTML = entries.map(e=>resultCard(e, ds, key)).join("");
+  } else {
+    const sugs = norm.digits ? suggestions(norm, data.flights, 4) : [];
+    let html = `<div class="result bad"><div class="verdict">✕ Not in the official schedule</div>
+      <div class="flight-no">${esc(norm.code)} · ${fmtLong(ds)}</div>
+      <div class="detail">No flight <b>${esc(norm.code)}</b> appears in Aspen's official ${monthLabel(key)} schedule.
+      Double-check the number with the guest.</div>`;
+    if (sugs.length){
+      html += `<div class="detail" style="margin-top:10px"><b>Did you mean one of these?</b></div><div class="chips">` +
+        sugs.map(s=>`<button class="chip" onclick="retryAs('${s.flight}')">${s.display}</button>`).join("") + `</div>`;
+    }
+    html += `</div>`;
+    out.innerHTML = html;
+  }
+  document.getElementById('src-line').innerHTML = srcLine(key, data);
+}
+function retryAs(code){
+  document.getElementById('q').value = code.replace(/([A-Z]+)(\d+)/,"$1 $2");
+  lookupFlight();
+}
+function resultCard(e, ds, key){
+  const {time, variant} = timeForDate(e, ds);
+  const dir = e.direction==="arrival" ? "Arrival" : "Departure";
+  const route = e.direction==="arrival" ? `${e.station} → ASE` : `ASE → ${e.station}`;
+  const al = AIRLINES[e.airline]||e.airline;
+  const vn = variantNote(e);
+  return `<div class="result ${variant?"warn":"ok"}">
+    <div class="verdict">${variant?"⚠ Confirmed — time varies":"✓ Confirmed"}</div>
+    <div class="flight-no">${al} ${e.display} · ${dir} · ${fmtLong(ds)}</div>
+    <div class="route">${route}</div>
+    <div class="bigtime">${time.replace(/\s*(AM|PM)/i,'<small>$1</small>')}</div>
+    <div class="detail">Scheduled ${dir.toLowerCase()} time for <b>${fmtLong(ds)}</b>.<br>
+    Operates: <b>${operates(e)}</b>${variant?` — <b>${time}</b> applies on this date.`:""}</div>
+    ${vn?`<div class="detail">${vn}</div>`:""}
+  </div>`;
+}
+
+function lookupRoute(){
+  const station = document.getElementById('origin').value;
+  const t = document.getElementById('t').value;
+  const ds = document.getElementById('d2').value || todayStr();
+  const {key, data, exact} = monthData(ds);
+  monthNotice(exact, key, ds);
+  const out = document.getElementById('out2');
+  const qm = t ? (+t.slice(0,2))*60 + (+t.slice(3,5)) : null;
+  const cands = data.flights
+    .filter(f=>f.direction==="arrival" && f.station===station)
+    .map(f=>{ const {time}=timeForDate(f,ds); const m=toMin(time);
+              return {f, time, diff: qm==null?0:Math.abs(m-qm)}; })
+    .sort((a,b)=>a.diff-b.diff).slice(0,8);
+  if (!cands.length){ out.innerHTML = card("bad","No arrivals found",`No arrivals from <b>${station}</b> in the ${monthLabel(key)} schedule.`); }
+  else {
+    out.innerHTML = `<div class="card" style="padding:8px 18px">
+      <div class="detail" style="margin:6px 0"><b>${station} → ASE</b> · ${fmtLong(ds)} · closest to ${t||"—"}:</div>` +
+      cands.map(c=>`<div class="match"><div><div class="t">${c.time}</div>
+        <div class="f">${c.f.display} · operates ${operates(c.f)}</div></div>
+        <button class="chip" onclick="retryAs('${c.f.flight}')">Use</button></div>`).join("") + `</div>`;
+  }
+  document.getElementById('src-line').innerHTML = srcLine(key, data);
+}
+
+function monthNotice(exact, key, ds){
+  const el = document.getElementById('month-notice');
+  if (!exact){ el.classList.remove('hidden');
+    el.textContent = `Showing the ${monthLabel(key)} schedule — the latest published month. ${fmtLong(ds)} isn't published yet.`; }
+  else el.classList.add('hidden');
+}
+function monthLabel(k){ const [y,m]=k.split("-");
+  return new Date(y, m-1, 1).toLocaleDateString("en-US",{month:"long", year:"numeric"}); }
+function srcLine(key, data){
+  return `Source: Aspen Airport official Airline Flight Schedule — ${monthLabel(key)}<br>
+    <a href="${data.source_url}" target="_blank" rel="noopener">View original PDF</a> · data refreshed ${DB.updated}`;
+}
+function card(cls, title, body){
+  return `<div class="result ${cls}"><div class="verdict">${title}</div><div class="detail">${body}</div></div>`;
+}
+function esc(s){ return String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+fetch("flights.json").then(r=>r.json()).then(db=>{
+  DB = db;
+  const t = todayStr();
+  document.getElementById('d1').value = t;
+  document.getElementById('d2').value = t;
+  const stations = [...new Set(
+    Object.values(db.months).flatMap(m=>m.flights.filter(f=>f.direction==="arrival").map(f=>f.station))
+  )].sort();
+  document.getElementById('origin').innerHTML =
+    stations.map(s=>`<option${s==="LAX"?" selected":""}>${s}</option>`).join("");
+  const keys = Object.keys(db.months).sort();
+  const latest = keys[keys.length-1];
+  document.getElementById('src-line').innerHTML = srcLine(latest, db.months[latest]);
+});
+document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter') lookupFlight(); });
+</script>
+</body>
+</html>
